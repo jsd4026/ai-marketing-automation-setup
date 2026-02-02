@@ -41,6 +41,81 @@ Most LLMs need reference files to stay on-brand. If you do not already have them
 2. Use the template prompts below with your LLM of choice.
    Paste your inputs at the top, then run each prompt one by one.
 
-### Prompt Templates (copy each into your LLM)
+## Phase 1: Manual AI Content Generation
 
-**1. Brand Style Guide & Core Foundations**
+### Brand Foundations (/phase1/docs/)
+
+- brand-style-guide-core-foundations.md  
+  Logo, palette (obsidian #333333, titanium #FFFFFF, teal pulse #00A0FA), Vireo Sans, tone rules, pillars list, narrative.
+
+- visual-identity-photography-guidelines.md  
+  Isolation shots, floating device, no hands/people, ARRI cinematic specs, teal accent once per frame.
+
+- campaign-content-templates.md  
+  Phases (Teaser/Reveal/Deepen/Evergreen), social/video/ad templates, poetic brevity.
+
+- usage-rules-restrictions.md  
+  Logo usage, trademark, color/typography, imagery, tone/copy restrictions.
+
+- target-audience-personas.md  
+  Creative Professionals, Tech Minimalists, Early AI Adopters, shared psychographics.
+
+### Daily Content Generation
+
+Use the prompt in /prompts/daily-content-prompt.md  
+Paste brand documents above it each session. Replace [CURRENT DATE].
+
+### Sample Daily Package
+
+/phase1/samples/2026-02-02-vireo-tech-package.md  
+Contains complete example: blog, social, influencers, competitive summary, events, ads, emails.
+
+## Phase 2: API Automation
+
+Scripts to publish Phase 1 outputs.
+
+### Folder Structure (/phase2/)
+
+- hubspot/  
+  - post_blog.py  
+  - send_email.py  
+
+- google-ads/  
+  - create_ad_copy.py  
+
+- social/  
+  - linkedin_post.py  
+  - twitter_post.py  
+  - meta_ads.py  
+
+- wordpress/  
+  - publish_post.py  
+
+- utils/  
+  - brand_compliance_check.py  
+  - content_formatter.py  
+
+### Example Script: HubSpot Blog Post
+
+phase2/hubspot/post_blog.py
+
+```python
+import requests
+import json
+
+HUBSPOT_API_KEY = "your-key"
+HEADERS = {"Authorization": f"Bearer {HUBSPOT_API_KEY}", "Content-Type": "application/json"}
+
+def publish_blog(title, body, meta_description):
+    payload = {
+        "name": title,
+        "html_title": title,
+        "body": body,
+        "meta_description": meta_description,
+        "publish_date": "now",
+        "state": "PUBLISHED"
+    }
+    r = requests.post("https://api.hubapi.com/content/api/v4/pages/blog-posts", headers=HEADERS, json=payload)
+    return r.json()
+
+# Parse Phase 1 markdown → extract title/body/meta → call function
