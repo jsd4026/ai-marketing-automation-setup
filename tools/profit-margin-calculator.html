@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Profit Margin Calculator</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #fff; --text: #1d2330; --muted: #5b6475;
+    --border: #d8dce3; --accent: #2563eb; --good: #15803d;
+    --warn-bg: #fef3c7; --warn-text: #92400e; --warn-border: #f59e0b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151b; --card: #1c2029; --text: #e8ebf1; --muted: #9aa3b5;
+      --border: #333a47; --accent: #60a5fa; --good: #4ade80;
+      --warn-bg: #3b2a0a; --warn-text: #fcd34d; --warn-border: #b45309;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 16px; background: var(--bg); color: var(--text);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 440px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 8px 0 4px; }
+  .note { color: var(--muted); margin: 0 0 20px; font-size: 0.95rem; }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px; margin-bottom: 16px;
+  }
+  label { display: block; font-weight: 600; margin-bottom: 6px; }
+  .field { margin-bottom: 16px; }
+  .field:last-child { margin-bottom: 0; }
+  .input-wrap { position: relative; }
+  .input-wrap span {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    color: var(--muted); pointer-events: none;
+  }
+  .prefix { left: 12px; }
+  .suffix { right: 12px; }
+  input[type=number] {
+    width: 100%; font-size: 1.1rem; padding: 12px 12px 12px 28px;
+    border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg); color: var(--text);
+  }
+  input.pct { padding: 12px 30px 12px 12px; }
+  input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .toggle {
+    display: flex; border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; margin-bottom: 16px;
+  }
+  .toggle button {
+    flex: 1; padding: 10px; font-size: 0.95rem; border: 0; cursor: pointer;
+    background: transparent; color: var(--text);
+  }
+  .toggle button.active { background: var(--accent); color: #fff; font-weight: 600; }
+  .results { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .stat .label { font-size: 0.85rem; color: var(--muted); }
+  .stat .value { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat.full { grid-column: 1 / -1; }
+  .warn {
+    margin-top: 16px; padding: 12px; border-radius: 8px;
+    background: var(--warn-bg); color: var(--warn-text);
+    border: 1px solid var(--warn-border); font-weight: 600;
+  }
+  .ok { margin-top: 16px; color: var(--good); font-weight: 600; }
+  .hint { color: var(--muted); font-size: 0.9rem; margin: 0; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Profit Margin Calculator</h1>
+  <p class="note">Enter what an item costs you and what you sell it for to see how much you keep. Or enter the margin you want, and it'll tell you what price to charge. Margins under 20% get flagged.</p>
+
+  <div class="card">
+    <div class="toggle" role="group" aria-label="Calculation mode">
+      <button type="button" id="modePrice" class="active">I know my price</button>
+      <button type="button" id="modeMargin">I want a margin</button>
+    </div>
+
+    <div class="field">
+      <label for="cost">Cost of goods</label>
+      <div class="input-wrap">
+        <span class="prefix">$</span>
+        <input id="cost" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
+      </div>
+    </div>
+
+    <div class="field" id="priceField">
+      <label for="price">Selling price</label>
+      <div class="input-wrap">
+        <span class="prefix">$</span>
+        <input id="price" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
+      </div>
+    </div>
+
+    <div class="field" id="marginField" hidden>
+      <label for="margin">Desired margin</label>
+      <div class="input-wrap">
+        <input id="margin" class="pct" type="number" inputmode="decimal" min="0" max="99.9" step="0.1" placeholder="30">
+        <span class="suffix">%</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" aria-live="polite">
+    <p class="hint" id="hint">Fill in the fields above to see results.</p>
+    <div id="out" hidden>
+      <div class="results">
+        <div class="stat full" id="priceStat" hidden>
+          <div class="label">Charge this price</div>
+          <div class="value" id="rPrice"></div>
+        </div>
+        <div class="stat">
+          <div class="label">Margin ($)</div>
+          <div class="value" id="rDollars"></div>
+        </div>
+        <div class="stat">
+          <div class="label">Margin (%)</div>
+          <div class="value" id="rPct"></div>
+        </div>
+      </div>
+      <div class="warn" id="warn" hidden>⚠ Margin is under 20%. This may not cover overhead like rent, payroll, and fees.</div>
+      <div class="ok" id="ok" hidden>✓ Healthy margin (20% or more).</div>
+    </div>
+  </div>
+</main>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const money = n => (n < 0 ? "-$" : "$") + Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  let mode = "price";
+
+  function setMode(m) {
+    mode = m;
+    $("modePrice").classList.toggle("active", m === "price");
+    $("modeMargin").classList.toggle("active", m === "margin");
+    $("priceField").hidden = m !== "price";
+    $("marginField").hidden = m !== "margin";
+    calc();
+  }
+
+  function show(msg) {
+    $("out").hidden = true;
+    $("hint").hidden = false;
+    $("hint").textContent = msg;
+  }
+
+  function calc() {
+    const cost = parseFloat($("cost").value);
+    let price, pct;
+
+    if (isNaN(cost) || cost < 0) return show("Enter your cost of goods.");
+
+    if (mode === "price") {
+      price = parseFloat($("price").value);
+      if (isNaN(price)) return show("Enter your selling price.");
+      if (price <= 0) return show("Selling price must be more than $0.");
+      pct = (price - cost) / price * 100;
+    } else {
+      pct = parseFloat($("margin").value);
+      if (isNaN(pct)) return show("Enter the margin you want.");
+      if (pct < 0 || pct >= 100) return show("Margin must be between 0% and 99.9%.");
+      price = cost / (1 - pct / 100);
+    }
+
+    const dollars = price - cost;
+    $("hint").hidden = true;
+    $("out").hidden = false;
+    $("priceStat").hidden = mode !== "margin";
+    $("rPrice").textContent = money(price);
+    $("rDollars").textContent = money(dollars);
+    $("rPct").textContent = pct.toFixed(1) + "%";
+    $("warn").hidden = pct >= 20;
+    $("ok").hidden = pct < 20;
+  }
+
+  $("modePrice").onclick = () => setMode("price");
+  $("modeMargin").onclick = () => setMode("margin");
+  ["cost", "price", "margin"].forEach(id => $(id).addEventListener("input", calc));
+</script>
+</body>
+</html>
