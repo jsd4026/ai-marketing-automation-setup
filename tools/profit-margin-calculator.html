@@ -3,18 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Profit Margin Calculator</title>
+<title>Job Pricing Calculator</title>
 <style>
   :root {
     --bg: #f5f6f8; --card: #fff; --text: #1d2330; --muted: #5b6475;
-    --border: #d8dce3; --accent: #2563eb; --good: #15803d;
+    --border: #d8dce3; --accent: #2563eb; --good: #15803d; --good-bg: #dcfce7;
     --warn-bg: #fef3c7; --warn-text: #92400e; --warn-border: #f59e0b;
+    --err: #b91c1c;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #12151b; --card: #1c2029; --text: #e8ebf1; --muted: #9aa3b5;
-      --border: #333a47; --accent: #60a5fa; --good: #4ade80;
+      --border: #333a47; --accent: #60a5fa; --good: #4ade80; --good-bg: #0f2e1b;
       --warn-bg: #3b2a0a; --warn-text: #fcd34d; --warn-border: #b45309;
+      --err: #f87171;
     }
   }
   * { box-sizing: border-box; }
@@ -22,16 +24,23 @@
     margin: 0; padding: 16px; background: var(--bg); color: var(--text);
     font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
-  main { max-width: 440px; margin: 0 auto; }
+  main { max-width: 460px; margin: 0 auto; }
   h1 { font-size: 1.5rem; margin: 8px 0 4px; }
+  h2 {
+    font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--muted); margin: 0 0 12px;
+  }
   .note { color: var(--muted); margin: 0 0 20px; font-size: 0.95rem; }
   .card {
     background: var(--card); border: 1px solid var(--border);
     border-radius: 12px; padding: 18px; margin-bottom: 16px;
   }
   label { display: block; font-weight: 600; margin-bottom: 6px; }
-  .field { margin-bottom: 16px; }
+  .opt { font-weight: 400; color: var(--muted); font-size: 0.85rem; }
+  .field { margin-bottom: 14px; }
   .field:last-child { margin-bottom: 0; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .row .field { margin-bottom: 0; }
   .input-wrap { position: relative; }
   .input-wrap span {
     position: absolute; top: 50%; transform: translateY(-50%);
@@ -44,142 +53,193 @@
     border: 1px solid var(--border); border-radius: 8px;
     background: var(--bg); color: var(--text);
   }
+  input.plain { padding-left: 12px; }
   input.pct { padding: 12px 30px 12px 12px; }
   input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-  .toggle {
-    display: flex; border: 1px solid var(--border); border-radius: 8px;
-    overflow: hidden; margin-bottom: 16px;
+  .sub { color: var(--muted); font-size: 0.9rem; margin: 10px 0 0; font-variant-numeric: tabular-nums; }
+  .line {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 10px 0; border-bottom: 1px solid var(--border); gap: 12px;
   }
-  .toggle button {
-    flex: 1; padding: 10px; font-size: 0.95rem; border: 0; cursor: pointer;
-    background: transparent; color: var(--text);
-  }
-  .toggle button.active { background: var(--accent); color: #fff; font-weight: 600; }
-  .results { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .stat .label { font-size: 0.85rem; color: var(--muted); }
-  .stat .value { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .stat.full { grid-column: 1 / -1; }
-  .warn {
-    margin-top: 16px; padding: 12px; border-radius: 8px;
-    background: var(--warn-bg); color: var(--warn-text);
-    border: 1px solid var(--warn-border); font-weight: 600;
-  }
-  .ok { margin-top: 16px; color: var(--good); font-weight: 600; }
+  .line:last-of-type { border-bottom: 0; }
+  .line .label { color: var(--muted); }
+  .line .value { font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+  .line.big .value { font-size: 1.6rem; color: var(--accent); }
+  .status { margin-top: 14px; padding: 12px; border-radius: 8px; font-weight: 600; }
+  .status.warn { background: var(--warn-bg); color: var(--warn-text); border: 1px solid var(--warn-border); }
+  .status.ok { background: var(--good-bg); color: var(--good); }
   .hint { color: var(--muted); font-size: 0.9rem; margin: 0; }
+  .hint.err { color: var(--err); font-weight: 600; }
   [hidden] { display: none !important; }
 </style>
 </head>
 <body>
 <main>
-  <h1>Profit Margin Calculator</h1>
-  <p class="note">Enter what an item costs you and what you sell it for to see how much you keep. Or enter the margin you want, and it'll tell you what price to charge. Margins under 20% get flagged.</p>
+  <h1>Job Pricing Calculator</h1>
+  <p class="note">Job pricing calculator. Enter materials and labor, set a target margin, and see the price you need to charge.</p>
 
-  <div class="card">
-    <div class="toggle" role="group" aria-label="Calculation mode">
-      <button type="button" id="modePrice" class="active">I know my price</button>
-      <button type="button" id="modeMargin">I want a margin</button>
-    </div>
-
+  <section class="card">
+    <h2>1. Materials</h2>
     <div class="field">
-      <label for="cost">Cost of goods</label>
+      <label for="materials">Materials cost</label>
       <div class="input-wrap">
         <span class="prefix">$</span>
-        <input id="cost" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
+        <input id="materials" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
       </div>
     </div>
+  </section>
 
-    <div class="field" id="priceField">
-      <label for="price">Selling price</label>
+  <section class="card">
+    <h2>2. Labor</h2>
+    <div class="row">
+      <div class="field">
+        <label for="hours">Hours</label>
+        <input id="hours" class="plain" type="number" inputmode="decimal" min="0" step="0.25" placeholder="0">
+      </div>
+      <div class="field">
+        <label for="rate">Hourly rate</label>
+        <div class="input-wrap">
+          <span class="prefix">$</span>
+          <input id="rate" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
+        </div>
+      </div>
+    </div>
+    <p class="sub" id="laborLine">Labor: $0.00</p>
+  </section>
+
+  <section class="card">
+    <h2>3. Pricing</h2>
+    <div class="field">
+      <label for="target">Target margin <span class="opt">(optional)</span></label>
+      <div class="input-wrap">
+        <input id="target" class="pct" type="number" inputmode="decimal" min="0" max="99.9" step="0.1" placeholder="e.g. 35">
+        <span class="suffix">%</span>
+      </div>
+    </div>
+    <div class="field">
+      <label for="price">Selling price <span class="opt">(optional)</span></label>
       <div class="input-wrap">
         <span class="prefix">$</span>
         <input id="price" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
       </div>
     </div>
+  </section>
 
-    <div class="field" id="marginField" hidden>
-      <label for="margin">Desired margin</label>
-      <div class="input-wrap">
-        <input id="margin" class="pct" type="number" inputmode="decimal" min="0" max="99.9" step="0.1" placeholder="30">
-        <span class="suffix">%</span>
-      </div>
-    </div>
-  </div>
-
-  <div class="card" aria-live="polite">
-    <p class="hint" id="hint">Fill in the fields above to see results.</p>
+  <section class="card" aria-live="polite">
+    <h2>Results</h2>
+    <p class="hint" id="hint">Enter materials and/or labor to get started.</p>
     <div id="out" hidden>
-      <div class="results">
-        <div class="stat full" id="priceStat" hidden>
-          <div class="label">Charge this price</div>
-          <div class="value" id="rPrice"></div>
+      <div class="line">
+        <span class="label">Total cost</span>
+        <span class="value" id="rCost"></span>
+      </div>
+      <div class="line big" id="reqLine" hidden>
+        <span class="label" id="reqLabel"></span>
+        <span class="value" id="rReq"></span>
+      </div>
+      <div id="marginLines" hidden>
+        <div class="line">
+          <span class="label">Margin ($)</span>
+          <span class="value" id="rDollars"></span>
         </div>
-        <div class="stat">
-          <div class="label">Margin ($)</div>
-          <div class="value" id="rDollars"></div>
-        </div>
-        <div class="stat">
-          <div class="label">Margin (%)</div>
-          <div class="value" id="rPct"></div>
+        <div class="line">
+          <span class="label">Margin (%)</span>
+          <span class="value" id="rPct"></span>
         </div>
       </div>
-      <div class="warn" id="warn" hidden>⚠ Margin is under 20%. This may not cover overhead like rent, payroll, and fees.</div>
-      <div class="ok" id="ok" hidden>✓ Healthy margin (20% or more).</div>
+      <p class="hint" id="outHint" hidden></p>
+      <div class="status" id="status" hidden></div>
     </div>
-  </div>
+  </section>
 </main>
 
 <script>
   const $ = id => document.getElementById(id);
+  const DEFAULT_MIN = 20;
   const money = n => (n < 0 ? "-$" : "$") + Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  let mode = "price";
+  const pctFmt = n => (Math.round(n * 10) / 10).toFixed(1) + "%";
+  // Blank -> null, otherwise a number (may be NaN for junk input)
+  const read = id => { const v = $(id).value.trim(); return v === "" ? null : parseFloat(v); };
+  // Round up to the cent so the quoted price never falls short of the target
+  const ceilCents = n => Math.ceil(n * 100 - 1e-6) / 100;
 
-  function setMode(m) {
-    mode = m;
-    $("modePrice").classList.toggle("active", m === "price");
-    $("modeMargin").classList.toggle("active", m === "margin");
-    $("priceField").hidden = m !== "price";
-    $("marginField").hidden = m !== "margin";
-    calc();
-  }
-
-  function show(msg) {
+  function fail(msg) {
     $("out").hidden = true;
     $("hint").hidden = false;
     $("hint").textContent = msg;
+    $("hint").classList.add("err");
   }
 
   function calc() {
-    const cost = parseFloat($("cost").value);
-    let price, pct;
+    const materials = read("materials") ?? 0;
+    const hours = read("hours") ?? 0;
+    const rate = read("rate") ?? 0;
+    const target = read("target");
+    const price = read("price");
 
-    if (isNaN(cost) || cost < 0) return show("Enter your cost of goods.");
-
-    if (mode === "price") {
-      price = parseFloat($("price").value);
-      if (isNaN(price)) return show("Enter your selling price.");
-      if (price <= 0) return show("Selling price must be more than $0.");
-      pct = (price - cost) / price * 100;
-    } else {
-      pct = parseFloat($("margin").value);
-      if (isNaN(pct)) return show("Enter the margin you want.");
-      if (pct < 0 || pct >= 100) return show("Margin must be between 0% and 99.9%.");
-      price = cost / (1 - pct / 100);
+    for (const [v, name] of [[materials, "Materials"], [hours, "Hours"], [rate, "Hourly rate"]]) {
+      if (isNaN(v) || v < 0) return fail(name + " can't be negative.");
     }
+    const labor = hours * rate;
+    $("laborLine").textContent = hours > 0 && rate > 0
+      ? `Labor: ${hours} hrs × ${money(rate)} = ${money(labor)}`
+      : `Labor: ${money(labor)}`;
 
-    const dollars = price - cost;
+    const cost = materials + labor;
+    if (cost === 0 && price === null) {
+      $("out").hidden = true;
+      $("hint").hidden = false;
+      $("hint").classList.remove("err");
+      $("hint").textContent = "Enter materials and/or labor to get started.";
+      return;
+    }
+    if (target !== null && (isNaN(target) || target < 0 || target >= 100))
+      return fail("Target margin must be between 0% and 99.9%.");
+    if (price !== null && (isNaN(price) || price <= 0))
+      return fail("Selling price must be more than $0.");
+
     $("hint").hidden = true;
     $("out").hidden = false;
-    $("priceStat").hidden = mode !== "margin";
-    $("rPrice").textContent = money(price);
+    $("rCost").textContent = money(cost);
+
+    // Required price for the target (or the 20% floor when no target is set)
+    const goal = target ?? DEFAULT_MIN;
+    const required = ceilCents(cost / (1 - goal / 100));
+    $("reqLine").hidden = false;
+    $("reqLabel").textContent = target !== null
+      ? `Price for ${pctFmt(goal)} margin`
+      : `Price for ${DEFAULT_MIN}% margin (no target set)`;
+    $("rReq").textContent = money(required);
+
+    const status = $("status");
+    const outHint = $("outHint");
+    if (price === null) {
+      $("marginLines").hidden = true;
+      status.hidden = true;
+      outHint.hidden = false;
+      outHint.textContent = "Enter a selling price to check your margin.";
+      return;
+    }
+
+    outHint.hidden = true;
+    const dollars = price - cost;
+    const pct = dollars / price * 100;
+    $("marginLines").hidden = false;
     $("rDollars").textContent = money(dollars);
-    $("rPct").textContent = pct.toFixed(1) + "%";
-    $("warn").hidden = pct >= 20;
-    $("ok").hidden = pct < 20;
+    $("rPct").textContent = pctFmt(pct);
+
+    status.hidden = false;
+    const label = target !== null ? `your ${pctFmt(goal)} target` : `the ${DEFAULT_MIN}% minimum`;
+    if (pct + 1e-9 < goal) {
+      status.className = "status warn";
+      status.textContent = `⚠ Margin is ${pctFmt(pct)}, under ${label}. Charge at least ${money(required)}.`;
+    } else {
+      status.className = "status ok";
+      status.textContent = `✓ Margin meets ${label}.`;
+    }
   }
 
-  $("modePrice").onclick = () => setMode("price");
-  $("modeMargin").onclick = () => setMode("margin");
-  ["cost", "price", "margin"].forEach(id => $(id).addEventListener("input", calc));
+  ["materials", "hours", "rate", "target", "price"].forEach(id => $(id).addEventListener("input", calc));
 </script>
 </body>
 </html>
